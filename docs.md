@@ -11,4 +11,4 @@ A lua vm obfuscator (obf) that addresses the issue of constant dumping. As I rem
  - Possibly use a different instruction set than lua 5.1
  - Possibly switch between instruction sets mid execution?
  - Wave function collapse algorithm to generate completely random handlers (this idea is kinda insane)
- - Handler web: jump around handlers in a web-like structer, good graph theory use case
+ - Handler web: jump around handlers in a web-like structure, good graph theory use case

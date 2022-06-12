@@ -1,17 +1,27 @@
-struct Something {
-    pub name: String
-}
+mod vm_constants;
 
-impl Something {
-    pub fn useMe(&self) {
-        println!("do something");
-    }
-}
+use vm_constants::{VM, BASE64_DECODE, VM_CALL};
+use mlua::Lua;
+use std::fs;
+use base64::encode;
+
+const IN: &str = "in.lua";
+const OUT: &str = "out.lua";
 
 fn main() {
-    let newSomething = Something {
-        name: String::from("lol")
-    };
+    let state = Lua::new();
+    let prerequisite = format!("{}{}", VM, BASE64_DECODE);
 
-    Something::useMe(&newSomething);
+    // Compile inputted lua code
+    let src = fs::read_to_string(IN)
+        .expect("Something went wrong reading the file");
+    let bc = state.load(&src).into_function()
+        .expect("Failed compiling the source code").dump(true);
+
+    // Construct a call to the vm
+    let call = VM_CALL.replace("$BYTECODE", encode(bc).as_str());
+    
+    // Write the final result
+    fs::write(OUT, format!("{}{}", prerequisite, call))
+        .expect("Couldn't write to output file");
 }
