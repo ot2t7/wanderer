@@ -9,3 +9,6 @@ pub enum OpCode {
 pub struct Function {
     
 }
+
+// Some lua primitives
+pub type size_t = u32;
