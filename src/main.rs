@@ -4,9 +4,7 @@ mod parse;
 fn main() {
     let src = String::from(r#"
 		local a = 5;
-		local function haha()
-			print(a);
-		end
+		print(a);
 	"#);
     parse::deserialize(&src).unwrap();
 }

@@ -1,27 +1,69 @@
-use std::{os::raw::c_double, fmt};
+use std::os::raw::c_double;
 
 /// Every single Lua 5.1 OpCode
+#[derive(Debug)]
 pub enum Instruction {
-    
+    Move(iABC),
+    Loadk(iABx), 
+    LoadBool(iABC), 
+    LoadNil(iABC), 
+    GetUpval(iABC), 
+    GetGlobal(iABx), 
+    GetTable(iABC), 
+    SetGlobal(iABx), 
+    SetUpval(iABC), 
+    SetTable(iABC), 
+    NewTable(iABC), 
+    _Self(iABC), // Self is already reserved by rust
+    Add(iABC), 
+    Sub(iABC), 
+    Mul(iABC), 
+    Div(iABC), 
+    Mod(iABC), 
+    Pow(iABC), 
+    Unm(iABC), 
+    Not(iABC), 
+    Len(iABC), 
+    Concat(iABC), 
+    Jmp(iAsBx), 
+    Eq(iABC), 
+    Lt(iABC), 
+    Le(iABC), 
+    Test(iABC), 
+    TestSet(iABC), 
+    Call(iABC), 
+    TailCall(iABC), 
+    Return(iABC), 
+    ForLoop(iAsBx), 
+    ForPrep(iAsBx), 
+    TForLoop(iABC), 
+    SetList(iABC), 
+    Close(iABC), 
+    Closure(iABx), 
+    Vararg(iABC),
+    Unknown
 }
 
 // Instruction formats, note that the sizes of the properties do not
 // reflect their actual size in the bytecode.
 
+#[derive(Debug, Default)]
 pub struct iABC {
     A: u8,
     C: u16,
     B: u16
 }
 
+#[derive(Debug, Default)]
 pub struct iABx {
     A: u8,
     Bx: u32,
 }
 
+#[derive(Debug, Default)]
 pub struct iAsBx {
     A: u8,
-    Bx: i32
+    sBx: i32
 }
 
 /// An instance of this struct represents a deserialized function block
