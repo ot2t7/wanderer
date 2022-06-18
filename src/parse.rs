@@ -4,18 +4,18 @@ use strum::IntoEnumIterator;
 
 use std::io::Cursor;
 use std::io::Read;
-use std::mem::size_of;
 
+use crate::instr::InstructionKind;
+use crate::instr::OpCode;
 use crate::instr::Instruction;
-use crate::instr::iABx;
-use crate::instr::iABC;
-use crate::instr::iAsBx;
 use super::instr::Function;
-use super::instr::size_t;
+use super::instr::SizeT;
 use super::instr::Vararg;
 use super::instr::Integer;
 use super::instr::Constant;
 use super::instr::Number;
+use super::instr::INSTRUCTION_MAP;
+use super::instr::make_instruction;
 
 #[derive(Debug)]
 pub enum ParserError {
@@ -75,15 +75,15 @@ macro_rules! consume_vec {
 }
 
 /// Uses the provided lua state in order to properly
-/// read a lua size_t from the bytecode.
-fn consume_size_t(bytecode: &mut Cursor<Vec<u8>>) -> Result<size_t, ParserError> {
-    return Ok(size_t::from_le_bytes(consume!(bytecode, 8)?));
+/// read a lua SizeT from the bytecode.
+fn consume_size_t(bytecode: &mut Cursor<Vec<u8>>) -> Result<SizeT, ParserError> {
+    return Ok(SizeT::from_le_bytes(consume!(bytecode, 8)?));
 }
 
 /// Uses the provided lua state and bytecode in order to
 /// properly read a lua String from the bytecode.
 fn consume_string<'lua>(bytecode: &mut Cursor<Vec<u8>>, state: &'lua Lua) -> Result<mlua::String<'lua>, ParserError> {
-    let mut len: size_t = consume_size_t(bytecode)?;
+    let mut len: SizeT = consume_size_t(bytecode)?;
     let mut null_terminated = false;
     if len > 0 { len = len - 1; null_terminated = true; } // Lua strings have a null terminator at the end, we don't wanna read that
     let res = state.create_string(&consume_vec!(bytecode, len)?)
@@ -106,10 +106,9 @@ fn consume_number(bytecode: &mut Cursor<Vec<u8>>) -> Result<Number, ParserError>
 }
 
 /// Take in a value which represents the ID of an 
-/// opcode, and then spit out a deserialized 
-/// instruction with all 0's for values.
-fn index_instruction(opcode: u8) -> Result<Instruction, ParserError> {
-    let instr = Instruction::iter().nth(opcode as usize);
+/// opcode, and then spit out an OpCode enum.
+fn index_instruction(opcode: u8) -> Result<OpCode, ParserError> {
+    let instr = OpCode::iter().nth(opcode as usize);
     match instr {
         Some(i) => return Ok(i),
         None => Err(ParserError::UnknownInstruction)
@@ -123,8 +122,24 @@ fn index_instruction(opcode: u8) -> Result<Instruction, ParserError> {
 /// https://github.com/Trollicus/ironbrew-2
 fn consume_instruction(bytecode: &mut Cursor<Vec<u8>>) -> Result<Instruction, ParserError> {
     let data = i32::from_le_bytes(consume!(bytecode, 4)?);
-    let opcode = data & 0x3F;
-    return Ok(index_instruction(opcode as u8)?);
+    let opcode_num = data & 0x3F;
+    let op_code = index_instruction(opcode_num as u8)?;
+    let instruction_kind = INSTRUCTION_MAP.get(&op_code).cloned().unwrap();
+    let mut template = make_instruction(op_code, instruction_kind);
+    template.a = (data >> 6) & 0xFF;
+    match template.instruction_kind {
+        InstructionKind::ABC => {
+            template.b = Some((data >> 6 + 8 + 9) & 0x1FF);
+        },
+        InstructionKind::ABx => {
+            template.bx = Some((data >> 6 + 8) & 0x3FFFF);
+        },
+        InstructionKind::AsBx => {
+            template.sbx = Some(((data >> 6 + 8) & 0x3FFFF) - 131071);
+        }
+    }
+
+    return Ok(template);
 }
 
 /// Take the original lua source code, and compile it into
