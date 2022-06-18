@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 mlua = { version = "0.8", features = ["lua51", "vendored"] }
-base64 = "0.13.0"
+strum = "0.24"
+strum_macros = "0.24"

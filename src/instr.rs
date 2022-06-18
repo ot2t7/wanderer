@@ -1,7 +1,10 @@
 use std::os::raw::c_double;
 
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
+
 /// Every single Lua 5.1 OpCode
-#[derive(Debug)]
+#[derive(Debug, EnumIter)]
 pub enum Instruction {
     Move(iABC),
     Loadk(iABx), 

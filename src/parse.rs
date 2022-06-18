@@ -1,5 +1,6 @@
 use mlua::Lua;
 use mlua::Error;
+use strum::IntoEnumIterator;
 
 use std::io::Cursor;
 use std::io::Read;
@@ -107,47 +108,11 @@ fn consume_number(bytecode: &mut Cursor<Vec<u8>>) -> Result<Number, ParserError>
 /// Take in a value which represents the ID of an 
 /// opcode, and then spit out a deserialized 
 /// instruction with all 0's for values.
-fn index_instruction(opcode: u8) -> Instruction {
-    match opcode {
-        0 => return Instruction::Move(iABC::default()),
-        1 => return Instruction::Loadk(iABx::default()), 
-        2 => return Instruction::LoadBool(iABC::default()), 
-        3 => return Instruction::LoadNil(iABC::default()), 
-        4 => return Instruction::GetUpval(iABC::default()), 
-        5 => return Instruction::GetGlobal(iABx::default()), 
-        6 => return Instruction::GetTable(iABC::default()), 
-        7 => return Instruction::SetGlobal(iABx::default()), 
-        8 => return Instruction::SetUpval(iABC::default()), 
-        9 => return Instruction::SetTable(iABC::default()), 
-        10 => return Instruction::NewTable(iABC::default()), 
-        11 => return Instruction::_Self(iABC::default()),
-        12 => return Instruction::Add(iABC::default()), 
-        13 => return Instruction::Sub(iABC::default()), 
-        14 => return Instruction::Mul(iABC::default()), 
-        15 => return Instruction::Div(iABC::default()), 
-        16 => return Instruction::Mod(iABC::default()), 
-        17 => return Instruction::Pow(iABC::default()), 
-        18 => return Instruction::Unm(iABC::default()), 
-        19 => return Instruction::Not(iABC::default()), 
-        20 => return Instruction::Len(iABC::default()), 
-        21 => return Instruction::Concat(iABC::default()), 
-        22 => return Instruction::Jmp(iAsBx::default()), 
-        23 => return Instruction::Eq(iABC::default()), 
-        24 => return Instruction::Lt(iABC::default()), 
-        25 => return Instruction::Le(iABC::default()), 
-        26 => return Instruction::Test(iABC::default()), 
-        27 => return Instruction::TestSet(iABC::default()), 
-        28 => return Instruction::Call(iABC::default()), 
-        29 => return Instruction::TailCall(iABC::default()), 
-        30 => return Instruction::Return(iABC::default()), 
-        31 => return Instruction::ForLoop(iAsBx::default()), 
-        32 => return Instruction::ForPrep(iAsBx::default()), 
-        33 => return Instruction::TForLoop(iABC::default()), 
-        34 => return Instruction::SetList(iABC::default()), 
-        35 => return Instruction::Close(iABC::default()), 
-        36 => return Instruction::Closure(iABx::default()), 
-        37 => return Instruction::Vararg(iABC::default()),
-        _ => Instruction::Unknown
+fn index_instruction(opcode: u8) -> Result<Instruction, ParserError> {
+    let instr = Instruction::iter().nth(opcode as usize);
+    match instr {
+        Some(i) => return Ok(i),
+        None => Err(ParserError::UnknownInstruction)
     }
 }
 
@@ -159,12 +124,7 @@ fn index_instruction(opcode: u8) -> Instruction {
 fn consume_instruction(bytecode: &mut Cursor<Vec<u8>>) -> Result<Instruction, ParserError> {
     let data = i32::from_le_bytes(consume!(bytecode, 4)?);
     let opcode = data & 0x3F;
-    let instr = index_instruction(opcode as u8);
-
-    match instr {
-        Instruction::Unknown => return Err(ParserError::UnknownInstruction),
-        _ => return Ok(instr)
-    }
+    return Ok(index_instruction(opcode as u8)?);
 }
 
 /// Take the original lua source code, and compile it into
