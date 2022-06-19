@@ -152,8 +152,21 @@ pub fn make_instruction(op_code: OpCode, instruction_kind: InstructionKind) -> I
 /// that has been extracted from the inputted bytecode. Most fields are
 /// self explanatory
 #[derive(Debug)]
-pub struct Function {
-    
+pub struct Function<'a> {
+    pub source_name: mlua::String<'a>,
+    pub line_defined: i32,
+    pub last_line_defined: i32,
+    pub num_upvalues: u8,
+    pub num_parameters: u8,
+    pub is_vararg: Vararg,
+    pub stack_size: u8,
+    pub instructions: Vec<Instruction>,
+    pub constants: Vec<Constant<'a>>,
+    pub function_protos: Vec<Function<'a>>,
+    // Debug data
+    pub instruction_positions: Vec<i32>, //Index of this Vec represents the instruction position, val represents line number in src
+    pub name_locals: Vec<Local<'a>>,
+    pub name_upvalues: Vec<mlua::String<'a>>
 }
 
 // Lua primitives, String is defined in mlua
@@ -177,4 +190,12 @@ pub enum Constant<'a> {
     Boolean(Boolean),
     Number(Number),
     String(mlua::String<'a>)
+}
+
+/// An entry in the debug local list 
+#[derive(Debug)]
+pub struct Local<'a> {
+    pub var_name: mlua::String<'a>,
+    pub start_pc: Integer,
+    pub end_pc: Integer
 }

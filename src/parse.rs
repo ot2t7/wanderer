@@ -6,6 +6,7 @@ use std::io::Cursor;
 use std::io::Read;
 
 use crate::instr::InstructionKind;
+use crate::instr::Local;
 use crate::instr::OpCode;
 use crate::instr::Instruction;
 use super::instr::Function;
@@ -147,12 +148,12 @@ fn consume_instruction(bytecode: &mut Cursor<Vec<u8>>) -> Result<Instruction, Pa
 /// Lua 5.1 bytecode.
 fn to_bytecode(src: &String, state: &Lua) -> Result<Cursor<Vec<u8>>, Error> {
     let func = state.load(src).into_function()?;
-    std::fs::write("out", func.dump(true)).unwrap();
-    return Ok(Cursor::new(func.dump(true)));
+    std::fs::write("out", func.dump(false)).unwrap();
+    return Ok(Cursor::new(func.dump(false)));
 }
 
 /// Deserialize a function block.
-fn deserialize_function(bytecode: &mut Cursor<Vec<u8>>, little_endian: bool, state: &Lua) -> Result<Function, ParserError> {
+fn deserialize_function<'a>(bytecode: &mut Cursor<Vec<u8>>, little_endian: bool, state: &'a Lua) -> Result<Function<'a>, ParserError> {
     // Source name
     let source_name = consume_string(bytecode, &state)?;
     // Line defined, and last line defined
@@ -203,16 +204,59 @@ fn deserialize_function(bytecode: &mut Cursor<Vec<u8>>, little_endian: bool, sta
         protos.push(deserialize_function(bytecode, little_endian, state)?);
     }
 
-    println!("{:?}, {:?}", constants, protos);
+    // Source line position list (debug)
+    let sizelineinfo = consume_integer(bytecode)?;
+    // Index of this Vec represents the instruction position, val represents line number in src
+    let mut instr_positions = Vec::with_capacity(sizelineinfo as usize);
+    for _ in 0..sizelineinfo {
+        instr_positions.push(consume_integer(bytecode)?);
+    }
 
+    // Local list (debug)
+    let sizelocvars = consume_integer(bytecode)?;
+    let mut locals = Vec::with_capacity(sizelocvars as usize);
+    for _ in 0..sizelocvars {
+        let var_name = consume_string(bytecode, state)?;
+        let start_pc = consume_integer(bytecode)?;
+        let end_pc = consume_integer(bytecode)?;
+        locals.push(Local {
+            var_name,
+            start_pc,
+            end_pc
+        })
+    }
 
-    todo!()
+    // Upvalue list (debug)
+    let sizeupvalues = consume_integer(bytecode)?;
+    let mut upvalues = Vec::with_capacity(sizeupvalues as usize);
+    for _ in 0..sizeupvalues {
+        upvalues.push(consume_string(bytecode, state)?);
+    }
+
+    println!("lines: {:?}", instr_positions);
+    println!("locals: {:?}", locals);
+    println!("upvalues: {:?}", upvalues);
+
+    return Ok(Function {
+        source_name,
+        line_defined,
+        last_line_defined,
+        num_upvalues,
+        num_parameters,
+        is_vararg,
+        stack_size,
+        instructions,
+        constants, 
+        function_protos: protos,
+        instruction_positions: instr_positions,
+        name_locals: locals,
+        name_upvalues: upvalues
+    });
 }
 
 
 /// Deserialize a chunk of lua bytecode
-pub fn deserialize(src: &String) -> Result<Function, ParserError> {
-    let state = Lua::new(); // For lua type generation, and compilation
+pub fn deserialize<'a>(src: &String, state: &'a Lua) -> Result<Function<'a>, ParserError> {
     let mut bytecode = to_bytecode(src, &state)
         .map_err(|e| ParserError::LuaError(e))?;
     
@@ -233,5 +277,5 @@ pub fn deserialize(src: &String) -> Result<Function, ParserError> {
     // Size of int, size_t, Instruction, and lua_Number, and the integral flag, we skip this
     consume!(bytecode, 5)?;
     // Begin eating up the function blocks
-    return deserialize_function(&mut bytecode, is_little_endian, &state);
+    return deserialize_function(&mut bytecode, is_little_endian, state);
 }
