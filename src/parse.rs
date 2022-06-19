@@ -130,6 +130,7 @@ fn consume_instruction(bytecode: &mut Cursor<Vec<u8>>) -> Result<Instruction, Pa
     match template.instruction_kind {
         InstructionKind::ABC => {
             template.b = Some((data >> 6 + 8 + 9) & 0x1FF);
+            template.c = Some((data >> 6 + 8) & 0x1FF);
         },
         InstructionKind::ABx => {
             template.bx = Some((data >> 6 + 8) & 0x3FFFF);
