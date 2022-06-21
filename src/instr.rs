@@ -154,8 +154,8 @@ pub fn make_instruction(op_code: OpCode, instruction_kind: InstructionKind) -> I
 #[derive(Debug)]
 pub struct Function<'a> {
     pub source_name: mlua::String<'a>,
-    pub line_defined: i32,
-    pub last_line_defined: i32,
+    pub line_defined: Integer,
+    pub last_line_defined: Integer,
     pub num_upvalues: u8,
     pub num_parameters: u8,
     pub is_vararg: Vararg,
@@ -164,7 +164,7 @@ pub struct Function<'a> {
     pub constants: Vec<Constant<'a>>,
     pub function_protos: Vec<Function<'a>>,
     // Debug data
-    pub instruction_positions: Vec<i32>, //Index of this Vec represents the instruction position, val represents line number in src
+    pub instruction_positions: Vec<Integer>, //Index of this Vec represents the instruction position, val represents line number in src
     pub name_locals: Vec<Local<'a>>,
     pub name_upvalues: Vec<mlua::String<'a>>
 }

@@ -1,22 +1,22 @@
-use mlua::Lua;
 use mlua::Error;
+use mlua::Lua;
 use strum::IntoEnumIterator;
 
 use std::io::Cursor;
 use std::io::Read;
 
+use super::instr::make_instruction;
+use super::instr::Constant;
+use super::instr::Function;
+use super::instr::Integer;
+use super::instr::Number;
+use super::instr::SizeT;
+use super::instr::Vararg;
+use super::instr::INSTRUCTION_MAP;
+use crate::instr::Instruction;
 use crate::instr::InstructionKind;
 use crate::instr::Local;
 use crate::instr::OpCode;
-use crate::instr::Instruction;
-use super::instr::Function;
-use super::instr::SizeT;
-use super::instr::Vararg;
-use super::instr::Integer;
-use super::instr::Constant;
-use super::instr::Number;
-use super::instr::INSTRUCTION_MAP;
-use super::instr::make_instruction;
 
 #[derive(Debug)]
 pub enum ParserError {
@@ -24,7 +24,7 @@ pub enum ParserError {
     NoBytesLeft(usize, i32),
     NotLua,
     WrongVersion,
-    UnknownInstruction
+    UnknownInstruction,
 }
 
 /// Go to a cursor and pop off a certain amount of bytes off
@@ -35,44 +35,42 @@ pub enum ParserError {
 /// be read.
 #[macro_export]
 macro_rules! consume {
-    ($reader: expr, $size: literal) => {
-        {
-            (||{
-                let mut buf: [u8 ; $size] = [0 ; $size];
-                match $reader.read(&mut buf) {
-                    Ok(num_bytes_read) => {
-                        if num_bytes_read < $size {
-                            return Err(ParserError::NoBytesLeft($size, num_bytes_read as i32));
-                        } else {
-                            return Ok(buf);
-                        }
+    ($reader: expr, $size: literal) => {{
+        (|| {
+            let mut buf: [u8; $size] = [0; $size];
+            match $reader.read(&mut buf) {
+                Ok(num_bytes_read) => {
+                    if num_bytes_read < $size {
+                        return Err(ParserError::NoBytesLeft($size, num_bytes_read as i32));
+                    } else {
+                        return Ok(buf);
                     }
-                    Err(_) => { return Err(ParserError::NoBytesLeft($size, -1)); }
                 }
-            })()
-        }
-    };
+                Err(_) => {
+                    return Err(ParserError::NoBytesLeft($size, -1));
+                }
+            }
+        })()
+    }};
 }
 
 /// Works in the same way as `consume!`, but it allows reading
 /// from the reader an non constant amount of bytes. This will
 /// be slower since it allocates byte by byte and allocates
 /// to a vector instead of a sized buffer.
-/// Also returns a `ParserError::NoBytesLeft` if not enough 
+/// Also returns a `ParserError::NoBytesLeft` if not enough
 /// bytes are left to be read.
 #[macro_export]
 macro_rules! consume_vec {
-    ($reader: expr, $size: expr) => {
-        {
-            (||{
-                let mut buf: Vec<u8> = vec![];
-                for _ in 0..$size {
-                    buf.push(consume!($reader, 1)?[0]);
-                }
-                return Ok(buf);
-            })()
-        }
-    };
+    ($reader: expr, $size: expr) => {{
+        (|| {
+            let mut buf: Vec<u8> = vec![];
+            for _ in 0..$size {
+                buf.push(consume!($reader, 1)?[0]);
+            }
+            return Ok(buf);
+        })()
+    }};
 }
 
 /// Uses the provided lua state in order to properly
@@ -83,14 +81,23 @@ fn consume_size_t(bytecode: &mut Cursor<Vec<u8>>) -> Result<SizeT, ParserError> 
 
 /// Uses the provided lua state and bytecode in order to
 /// properly read a lua String from the bytecode.
-fn consume_string<'lua>(bytecode: &mut Cursor<Vec<u8>>, state: &'lua Lua) -> Result<mlua::String<'lua>, ParserError> {
+fn consume_string<'lua>(
+    bytecode: &mut Cursor<Vec<u8>>,
+    state: &'lua Lua,
+) -> Result<mlua::String<'lua>, ParserError> {
     let mut len: SizeT = consume_size_t(bytecode)?;
     let mut null_terminated = false;
-    if len > 0 { len = len - 1; null_terminated = true; } // Lua strings have a null terminator at the end, we don't wanna read that
-    let res = state.create_string(&consume_vec!(bytecode, len)?)
+    if len > 0 {
+        len = len - 1;
+        null_terminated = true;
+    } // Lua strings have a null terminator at the end, we don't wanna read that
+    let res = state
+        .create_string(&consume_vec!(bytecode, len)?)
         .map_err(|e| ParserError::LuaError(e))?;
 
-    if null_terminated == true { consume!(bytecode, 1)?; } // We skipped a byte, let's account for that
+    if null_terminated == true {
+        consume!(bytecode, 1)?;
+    } // We skipped a byte, let's account for that
     return Ok(res);
 }
 
@@ -106,19 +113,19 @@ fn consume_number(bytecode: &mut Cursor<Vec<u8>>) -> Result<Number, ParserError>
     return Ok(Number::from_le_bytes(consume!(bytecode, 8)?));
 }
 
-/// Take in a value which represents the ID of an 
+/// Take in a value which represents the ID of an
 /// opcode, and then spit out an OpCode enum.
 fn index_instruction(opcode: u8) -> Result<OpCode, ParserError> {
     let instr = OpCode::iter().nth(opcode as usize);
     match instr {
         Some(i) => return Ok(i),
-        None => Err(ParserError::UnknownInstruction)
+        None => Err(ParserError::UnknownInstruction),
     }
 }
 
 /// Uses the provided bytecode in order to properly
 /// read a lua instruction from the bytecode. Some
-/// bitwise operations have been taken from the 
+/// bitwise operations have been taken from the
 /// Ironbrew 2 source code.
 /// https://github.com/Trollicus/ironbrew-2
 fn consume_instruction(bytecode: &mut Cursor<Vec<u8>>) -> Result<Instruction, ParserError> {
@@ -132,10 +139,10 @@ fn consume_instruction(bytecode: &mut Cursor<Vec<u8>>) -> Result<Instruction, Pa
         InstructionKind::ABC => {
             template.b = Some((data >> 6 + 8 + 9) & 0x1FF);
             template.c = Some((data >> 6 + 8) & 0x1FF);
-        },
+        }
         InstructionKind::ABx => {
             template.bx = Some((data >> 6 + 8) & 0x3FFFF);
-        },
+        }
         InstructionKind::AsBx => {
             template.sbx = Some(((data >> 6 + 8) & 0x3FFFF) - 131071);
         }
@@ -153,7 +160,11 @@ fn to_bytecode(src: &String, state: &Lua) -> Result<Cursor<Vec<u8>>, Error> {
 }
 
 /// Deserialize a function block.
-fn deserialize_function<'a>(bytecode: &mut Cursor<Vec<u8>>, little_endian: bool, state: &'a Lua) -> Result<Function<'a>, ParserError> {
+fn deserialize_function<'a>(
+    bytecode: &mut Cursor<Vec<u8>>,
+    little_endian: bool,
+    state: &'a Lua,
+) -> Result<Function<'a>, ParserError> {
     // Source name
     let source_name = consume_string(bytecode, &state)?;
     // Line defined, and last line defined
@@ -169,7 +180,7 @@ fn deserialize_function<'a>(bytecode: &mut Cursor<Vec<u8>>, little_endian: bool,
         1 => is_vararg = Vararg::HasArg,
         2 => is_vararg = Vararg::IsVararg,
         4 => is_vararg = Vararg::NeedsVararg,
-        _ => is_vararg = Vararg::HasArg // Idk lets just assume 1
+        _ => is_vararg = Vararg::HasArg, // Idk lets just assume 1
     }
     // Maximum stack size, or the number of registers used
     let stack_size = consume!(bytecode, 1)?[0];
@@ -180,7 +191,6 @@ fn deserialize_function<'a>(bytecode: &mut Cursor<Vec<u8>>, little_endian: bool,
     for _ in 0..sizecode {
         instructions.push(consume_instruction(bytecode)?);
     }
-    println!("instructions: {:?}", instructions);
 
     // Constant list
     let sizek = consume_integer(bytecode)?;
@@ -192,7 +202,7 @@ fn deserialize_function<'a>(bytecode: &mut Cursor<Vec<u8>>, little_endian: bool,
             1 => constant_type = Constant::Boolean(consume!(bytecode, 1)?[0] == 1),
             3 => constant_type = Constant::Number(consume_number(bytecode)?),
             4 => constant_type = Constant::String(consume_string(bytecode, state)?),
-            _ => constant_type = Constant::Nil // Assume nil
+            _ => constant_type = Constant::Nil, // Assume nil
         }
         constants.push(constant_type);
     }
@@ -222,7 +232,7 @@ fn deserialize_function<'a>(bytecode: &mut Cursor<Vec<u8>>, little_endian: bool,
         locals.push(Local {
             var_name,
             start_pc,
-            end_pc
+            end_pc,
         })
     }
 
@@ -233,10 +243,6 @@ fn deserialize_function<'a>(bytecode: &mut Cursor<Vec<u8>>, little_endian: bool,
         upvalues.push(consume_string(bytecode, state)?);
     }
 
-    println!("lines: {:?}", instr_positions);
-    println!("locals: {:?}", locals);
-    println!("upvalues: {:?}", upvalues);
-
     return Ok(Function {
         source_name,
         line_defined,
@@ -246,20 +252,18 @@ fn deserialize_function<'a>(bytecode: &mut Cursor<Vec<u8>>, little_endian: bool,
         is_vararg,
         stack_size,
         instructions,
-        constants, 
+        constants,
         function_protos: protos,
         instruction_positions: instr_positions,
         name_locals: locals,
-        name_upvalues: upvalues
+        name_upvalues: upvalues,
     });
 }
 
-
 /// Deserialize a chunk of lua bytecode
 pub fn deserialize<'a>(src: &String, state: &'a Lua) -> Result<Function<'a>, ParserError> {
-    let mut bytecode = to_bytecode(src, &state)
-        .map_err(|e| ParserError::LuaError(e))?;
-    
+    let mut bytecode = to_bytecode(src, &state).map_err(|e| ParserError::LuaError(e))?;
+
     // Read the lua header block
 
     // Header Signature, should be 0x1B4C7561
