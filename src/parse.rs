@@ -199,10 +199,7 @@ fn deserialize_function<'a>(
         let constant_type;
         match consume!(bytecode, 1)?[0] {
             0 => constant_type = Constant::Nil,
-            1 => {
-                println!("Theres a 1!");
-                constant_type = Constant::Boolean(consume!(bytecode, 1)?[0] == 1)
-            },
+            1 => constant_type = Constant::Boolean(consume!(bytecode, 1)?[0] == 1),
             3 => constant_type = Constant::Number(consume_number(bytecode)?),
             4 => constant_type = Constant::String(consume_string(bytecode, state)?),
             _ => constant_type = Constant::Nil, // Assume nil

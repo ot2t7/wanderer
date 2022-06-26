@@ -48,37 +48,5 @@ fn main() {
 	"#);
     let func = parse::deserialize(&src, &state).unwrap();
     debug_func(&func, 0);
-    // Output
-    let mut out = String::from("local Stack = {};\n");
-    // Generate constants
-    let mut constants = String::from("local Constants = {");
-    for constant in func.constants {
-        match constant {
-            Constant::Nil => {
-                constants.push_str("nil, ")
-            },
-            Constant::Boolean(b) => {
-                println!("Boolean found!");
-                if b == true {
-                    constants.push_str("true, ")
-                } else {
-                    constants.push_str("false, ")
-                }
-            },
-            Constant::Number(n) => {
-                let res = n.to_string() + ", ";
-                constants.push_str(&res);
-            },
-            Constant::String(s) => {
-                let res = "\"".to_owned() + &s.to_string_lossy() + "\", ";
-                constants.push_str(&res);
-            }
-        }
-    }
-    constants.push_str("};\n");
-    out.push_str(&constants);
-
-    write("out.lua", out).unwrap();
-
 
 }
