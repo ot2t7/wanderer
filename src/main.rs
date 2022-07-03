@@ -46,8 +46,5 @@ fn main() {
         print(15, 92.2441, true)
 	"#);
     let func = parse::deserialize(&src, &state).unwrap();
-    //debug_func(&func, 0);
-
-    
-
+    vmstr::load_vm_strings().unwrap();
 }
