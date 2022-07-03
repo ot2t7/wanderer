@@ -10,3 +10,5 @@ mlua = { version = "0.8", features = ["lua51", "vendored"] }
 strum = "0.24"
 strum_macros = "0.24"
 lazy_static = "1.4.0"
+regex = "1.5.6"
+rand = "0.8.5"

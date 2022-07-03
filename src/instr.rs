@@ -108,6 +108,7 @@ pub enum InstructionKind {
 pub struct Instruction {
     pub op_code: OpCode,
     pub instruction_kind: InstructionKind,
+    pub token: Option<i64>,
     pub a: i32,
     pub c: Option<i32>,
     pub b: Option<i32>,
@@ -120,6 +121,7 @@ pub fn make_instruction(op_code: OpCode, instruction_kind: InstructionKind) -> I
     match instruction_kind {
         InstructionKind::ABC => return Instruction {
             op_code, 
+            token: None,
             instruction_kind, 
             a: 0, 
             b: Some(0), 
@@ -128,7 +130,8 @@ pub fn make_instruction(op_code: OpCode, instruction_kind: InstructionKind) -> I
             sbx: None
         },
         InstructionKind::ABx => return Instruction {
-            op_code, 
+            op_code,  
+            token: None,
             instruction_kind, 
             a: 0, 
             b: None, 
@@ -137,7 +140,8 @@ pub fn make_instruction(op_code: OpCode, instruction_kind: InstructionKind) -> I
             sbx: None
         },
         InstructionKind::AsBx => return Instruction {
-            op_code, 
+            op_code,  
+            token: None,
             instruction_kind, 
             a: 0, 
             b: None, 

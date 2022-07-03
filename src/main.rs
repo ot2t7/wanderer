@@ -1,13 +1,12 @@
 mod instr;
 mod parse;
 mod vmstr;
+mod token;
 
 use mlua::Lua;
 
 use instr::Constant;
 use instr::Function;
-
-use std::fs::write;
 
 fn debug_func(func: &Function, level: u32) {
     let indent = " ".repeat(level as usize);
@@ -47,6 +46,8 @@ fn main() {
         print(15, 92.2441, true)
 	"#);
     let func = parse::deserialize(&src, &state).unwrap();
-    debug_func(&func, 0);
+    //debug_func(&func, 0);
+
+    
 
 }
