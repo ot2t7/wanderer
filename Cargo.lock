@@ -39,6 +39,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "departure"
+version = "0.1.0"
+source = "git+https://github.com/ot2t7/departure#23e478acd1d03fc43da11cff5c0a8ee9fb9c3b92"
+dependencies = [
+ "lazy_static",
+ "mlua",
+ "strum",
+ "strum_macros",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -251,6 +262,7 @@ checksum = "5bd2fe26506023ed7b5e1e315add59d6f584c621d037f9368fea9cfb988f368c"
 name = "wanderer"
 version = "0.1.0"
 dependencies = [
+ "departure",
  "lazy_static",
  "mlua",
  "rand",
