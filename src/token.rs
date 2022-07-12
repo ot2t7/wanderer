@@ -52,7 +52,7 @@ pub fn register_tokens(func: &Function, token_defs: &HashMap<OpCode, Token>) -> 
         // LoadBool, Jmp, Eq, Lt, Le, Test, Testset
         match instr.op_code { // Doing instructions[i + 1] is safe because last instruction
                               // is always going to be Return
-            OpCode::LoadBool | OpCode::Eq | OpCode::Lt | OpCode::Le | OpCode::Test | OpCode::TestSet => {
+            OpCode::LoadBool | OpCode::Eq | OpCode::Lt | OpCode::Le | OpCode::Test | OpCode::TestSet | OpCode::TForLoop => {
                 let mut pc_inc = token_defs[&func.instructions[i + 1].op_code] as RToken;
                 let offset = token_defs[&instr.op_code] as RToken;
                 pc_inc += offset;
@@ -84,7 +84,7 @@ pub fn register_tokens(func: &Function, token_defs: &HashMap<OpCode, Token>) -> 
                 tokenized.push(TokenizedInstruction { 
                     instruction: orig_instr, 
                     current_token: current_token, 
-                    token_offsets: vec![offset, skipped_offsets]
+                    token_offsets: if instr.op_code != OpCode::Jmp { vec![offset, skipped_offsets] } else { vec![skipped_offsets] }
                 });
                 current_token += offset;
             }

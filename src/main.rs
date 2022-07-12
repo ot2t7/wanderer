@@ -12,7 +12,9 @@ fn main() {
     //println!("{:<12}{:<6}{:<6}", "Return", 0, 0);
 
     let source = String::from(r#"
-        local m, n; return m >= n
+        if 5 > 10 then
+            print("wtf")
+        end
     "#);
     let compiled = deserialize(&source).unwrap();
 
