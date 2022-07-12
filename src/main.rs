@@ -1,9 +1,22 @@
 mod token;
 mod vmstr;
+mod debug;
 
-use token::tokenize;
+use token::{tokenize, register_tokens};
+use debug::debug_tokens;
+
+use departure::deserialize;
 
 fn main() {
-    let codes = tokenize();
-    println!("{:?}", codes);
+    //println!("{:<12}{:<6}{:<6}{:<6}", "GetGlobal", 1, 0, 1);
+    //println!("{:<12}{:<6}{:<6}", "Return", 0, 0);
+
+    let source = String::from(r#"
+        local m, n; return m >= n
+    "#);
+    let compiled = deserialize(&source).unwrap();
+
+    let codes= tokenize();
+    let tokenized = register_tokens(&compiled, &codes);
+    debug_tokens(&tokenized);
 }

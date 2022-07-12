@@ -5,14 +5,17 @@ use departure::{Constant, Function, Instruction, Integer, Local, OpCode, Vararg}
 use rand::random;
 use strum::IntoEnumIterator;
 
-type Token = i32; // Keep in mind: the usual size of a lua number is 8 bytes, or 64 bits.
+pub type Token = i32; // Keep in mind: the usual size of a lua number is 8 bytes, or 64 bits.
+pub type RToken = i64; // A bigger token type to represent multiple tokens added.
 
+#[derive(PartialEq, Clone)]
 pub struct TokenizedInstruction {
-    instruction: Instruction,
-    current_token: Token,
-    token_offsets: Vec<Token>,
+    pub instruction: Instruction,
+    pub current_token: RToken,
+    pub token_offsets: Vec<RToken>,
 }
 
+#[derive(Clone)]
 pub struct TokenizedFunction {
     pub source_name: OsString,
     pub line_defined: Integer,
@@ -39,17 +42,71 @@ pub fn tokenize() -> HashMap<OpCode, Token> {
     return to_return;
 }
 
-pub fn register_tokens(func: Function, token_defs: HashMap<OpCode, Token>) -> TokenizedFunction {
-    let tokenized: Vec<TokenizedInstruction> = vec![];
-    let tokenized_protos: Vec<TokenizedFunction> = vec![];
-    let current_token: Token = 0;
+pub fn register_tokens(func: &Function, token_defs: &HashMap<OpCode, Token>) -> TokenizedFunction {
+    let mut tokenized: Vec<TokenizedInstruction> = vec![];
+    let mut tokenized_protos: Vec<TokenizedFunction> = vec![];
+    let mut current_token: RToken = 0;
 
     for (i, instr) in func.instructions.iter().enumerate() {
-        
+        // All instructions which jump:
+        // LoadBool, Jmp, Eq, Lt, Le, Test, Testset
+        match instr.op_code { // Doing instructions[i + 1] is safe because last instruction
+                              // is always going to be Return
+            OpCode::LoadBool | OpCode::Eq | OpCode::Lt | OpCode::Le | OpCode::Test | OpCode::TestSet => {
+                let mut pc_inc = token_defs[&func.instructions[i + 1].op_code] as RToken;
+                let offset = token_defs[&instr.op_code] as RToken;
+                pc_inc += offset;
+                let orig_instr = (*instr).clone();
+                tokenized.push(TokenizedInstruction { 
+                    instruction: orig_instr, 
+                    current_token: current_token, 
+                    token_offsets: vec![offset, pc_inc]
+                });
+                current_token += offset;
+            }
+            OpCode::ForPrep | OpCode::ForLoop | OpCode::Jmp => {
+                let offset = token_defs[&instr.op_code] as RToken;
+                let to_jump = instr.sbx.unwrap() as RToken;
+                let mut skipped_offsets: RToken = 0;
+                // Rust can't forloop with a negative increment, so we're gonna have to do
+                // some hacks
+                if to_jump < 0 {
+                    for s in (i as RToken + to_jump)..(i as RToken) {
+                        skipped_offsets -= token_defs[&func.instructions[s as usize].op_code] as RToken;
+                    }
+                } else {
+                    skipped_offsets += offset;
+                    for s in (i as RToken + 1)..(i as RToken + to_jump + 1) {
+                        skipped_offsets += token_defs[&func.instructions[s as usize].op_code] as RToken;
+                    }
+                }
+                let orig_instr = (*instr).clone();
+                tokenized.push(TokenizedInstruction { 
+                    instruction: orig_instr, 
+                    current_token: current_token, 
+                    token_offsets: vec![offset, skipped_offsets]
+                });
+                current_token += offset;
+            }
+            _ => { // Non jumping instruction
+                let offset = token_defs[&instr.op_code] as RToken;
+                let orig_instr = (*instr).clone();
+                tokenized.push(TokenizedInstruction { 
+                    instruction: orig_instr, 
+                    current_token: current_token,
+                    token_offsets: vec![offset]
+                });
+                current_token += offset;
+            }
+        }
+    }
+
+    for f in &func.function_protos {
+        tokenized_protos.push(register_tokens(f, token_defs));
     }
 
     return TokenizedFunction {
-        source_name: func.source_name,
+        source_name: func.source_name.clone(),
         line_defined: func.line_defined,
         last_line_defined: func.last_line_defined,
         num_upvalues: func.num_upvalues,
@@ -57,10 +114,10 @@ pub fn register_tokens(func: Function, token_defs: HashMap<OpCode, Token>) -> To
         is_vararg: func.is_vararg,
         stack_size: func.stack_size,
         instructions: tokenized,
-        constants: func.constants,
+        constants: func.constants.clone(),
         function_protos: tokenized_protos,
-        instruction_positions: func.instruction_positions,
-        name_locals: func.name_locals,
-        name_upvalues: func.name_upvalues,
+        instruction_positions: func.instruction_positions.clone(),
+        name_locals: func.name_locals.clone(),
+        name_upvalues: func.name_upvalues.clone(),
     };
 }
