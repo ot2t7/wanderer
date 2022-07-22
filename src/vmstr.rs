@@ -15,6 +15,23 @@ pub enum VmStringSeekError {
     IoError(Error)
 }
 
+/// Goes through every single vm string and removes any
+/// vm strings which may be embedded inside of it. 
+fn clean_vm_strings(log: &mut HashMap<String, String>) {
+    for(_index, content) in log.iter_mut() {
+        for cap in SEARCH.captures_iter(&content.clone()) {
+            let sub_name = &cap[1];
+            let sub_regex = Regex::new(format!(
+                "-- @BEGIN {}@([\\S\\n\\t\\v ]+)-- @END {}@",
+                sub_name,
+                sub_name
+            ).as_str()).unwrap();
+            let removed = sub_regex.replace(content, "").to_string();
+            *content = removed;
+        } 
+    }
+}
+
 /// Crawls a directory, logging the hashmap of vm strings.
 fn scan_dir(path: &Path, log: &mut HashMap<String, String>) -> Result<(), VmStringSeekError> {
     for entry in read_dir(path)
@@ -61,6 +78,7 @@ pub fn load_vm_strings() -> Result<HashMap<String, String>, VmStringSeekError> {
     let mut vm_strings: HashMap<String, String> = HashMap::new();
 
     scan_dir(path, &mut vm_strings)?;
+    clean_vm_strings(&mut vm_strings);
 
     return Ok(vm_strings);
 }

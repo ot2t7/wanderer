@@ -1,6 +1,6 @@
 local DATA_PACKED = "helloworld";
 
---@BEGIN BYTECODE_READER@
+-- @BEGIN BYTECODE_READER@
 local bytecodeCounter = 1;
 
 -- If pop is true, then only the content will be popped off the 
@@ -23,6 +23,6 @@ local function popBytecode(amount, pop, offset)
 end
 
 local function readUntil(token, amount)
-
+    
 end
---@END BYTECODE_READER@
+-- @END BYTECODE_READER@
