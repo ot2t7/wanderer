@@ -1,4 +1,4 @@
 -- @BEGIN HEADER@
 local data_packed = "DATA_PACKED";
-local floor = math.floor;
+local ffloor = math.floor;
 -- @END HEADER@
